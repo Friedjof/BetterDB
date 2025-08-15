@@ -1,9 +1,0 @@
-{
-	// JavaScript-Konfiguration für das Projekt
-	"compilerOptions": {
-		// Pfad-Aliase für einfachere Imports (@/ zeigt auf Projektwurzel)
-		"paths": {
-			"@/*": ["./*"]
-		}
-	}
-}
