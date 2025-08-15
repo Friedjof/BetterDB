@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import JourneyResults from "@/components/JourneyResults";
 import SplitOptions from "@/components/SplitOptions";
-import { searchForJourneys, validateJourneyData } from "@/utils/journeyUtils";
+import { searchForJourneys, validateJourneyData, formatTime } from "@/utils/journeyUtils";
 
 // Konstanten für Lademeldungen
 const LOADING_MESSAGES = {
@@ -23,17 +23,6 @@ const STATUS = {
 	ANALYZING: "analyzing",
 	DONE: "done",
 	ERROR: "error",
-};
-
-// Hilfsfunktionen für Formatierung
-
-// Formatiere Zeit für deutsche Anzeige
-const formatTime = (dateTime) => {
-	if (!dateTime) return "";
-	return new Date(dateTime).toLocaleTimeString("de-DE", {
-		hour: "2-digit",
-		minute: "2-digit",
-	});
 };
 
 // Formatiere Reisedauer
@@ -93,14 +82,12 @@ function StatusBox({ message, isLoading, progressInfo }) {
 								Aktuelle Station: {progressInfo.currentStation}
 							</div>
 						)}
-						{/* Progress bar */}
-						<div className="w-64 bg-white bg-opacity-20 rounded-full h-2 mt-2">
+						{/* Professional Progress bar */}
+						<div className="w-64 bg-neutral-200 rounded-full h-2 mt-2 overflow-hidden">
 							<div
-								className="bg-white h-2 rounded-full transition-all duration-300 ease-out"
+								className="bg-db-red-600 h-2 rounded-full transition-all duration-300 ease-out"
 								style={{
-									width: `${
-										(progressInfo.checked / progressInfo.total) * 100
-									}%`,
+									width: `${(progressInfo.checked / progressInfo.total) * 100}%`
 								}}
 							></div>
 						</div>

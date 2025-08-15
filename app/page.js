@@ -3,7 +3,6 @@
 // Importiere notwendige React-Funktionen und Komponenten
 import { useState } from "react";
 import SearchForm from "@/components/SearchForm";
-import Hero from "@/components/Hero";
 
 // Haupt-Startseiten-Komponente
 export default function Home() {
@@ -19,8 +18,6 @@ export default function Home() {
 				</div>
 			)}
 
-			{/* Hero-Bereich mit Willkommensnachricht */}
-			<Hero />
 			{/* Suchformular für Bahnverbindungen */}
 			<SearchForm />
 		</>

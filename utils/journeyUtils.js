@@ -2,11 +2,11 @@
 
 // Formatiere Zeit von ISO-String zu HH:MM
 export const formatTime = (dateString) => {
-	if (!dateString) return "Unknown";
+	if (!dateString) return "--:--"; // Konsistent mit JourneyCard
 	const date = new Date(dateString);
 	if (isNaN(date)) {
 		console.error("Invalid date string:", dateString);
-		return "Invalid time";
+		return "--:--";
 	}
 	try {
 		return date.toLocaleTimeString("de-DE", {
@@ -14,7 +14,7 @@ export const formatTime = (dateString) => {
 			minute: "2-digit",
 		});
 	} catch (e) {
-		return "Invalid time"; // Fallback bei unwahrscheinlichem Locale-Fehler
+		return "--:--"; // Fallback bei unwahrscheinlichem Locale-Fehler
 	}
 };
 

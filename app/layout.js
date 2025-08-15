@@ -26,13 +26,15 @@ export default function RootLayout({ children }) {
 	return (
 		<html lang="en">
 			<body
-				className={`${geistSans.variable} ${geistMono.variable} antialiased container mx-auto px-2 py-6`}
+				className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
 			>
 				{/* Navigation einbinden */}
 				<Navbar />
-				{/* Seiteninhalt */}
-				{children}
-				{/* Fußzeile einbinden */}
+				{/* Seiteninhalt - nimmt verfügbaren Platz ein */}
+				<main className="flex-1 container mx-auto px-2 py-6">
+					{children}
+				</main>
+				{/* Fußzeile einbinden - haftet immer am unteren Rand */}
 				<Footer />
 			</body>
 		</html>

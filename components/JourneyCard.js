@@ -1,15 +1,6 @@
 "use client";
 
-// Hilfsfunktionen für Formatierung
-
-// Formatiert Zeitangabe für deutsche Anzeige
-const formatTime = (dateString) => {
-	if (!dateString) return "--:--";
-	return new Date(dateString).toLocaleTimeString("de-DE", {
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-};
+import { formatTime } from "@/utils/journeyUtils";
 
 // Formatiert Reisedauer in lesbarer Form
 const formatDuration = (duration) => {
@@ -185,39 +176,41 @@ const JourneyCard = ({
 
 	return (
 		<div
-			className={`border rounded-lg p-4 transition-all duration-200 ${
+			className={`card-journey transition-smooth ${
 				isSelected
-					? "border-blue-500 bg-white shadow-md"
-					: "border-gray-300 bg-gray-50 hover:shadow-md"
+					? "card-selected"
+					: "hover:shadow-lg"
 			}`}
 		>
-			{/* Journey Header - Similar to SplitOptions */}
-			<div className="flex justify-between items-center mb-2">
-				<div>
-					<span className="text-sm text-gray-500">Journey:</span>
-					<span className="text-lg font-bold text-blue-600 ml-2">
+			{/* Journey Header */}
+			<div className="flex justify-between items-start mb-4">
+				<div className="flex-1">
+					<div className="flex items-center space-x-2 mb-2">
+						<span className="badge badge-primary">Verbindung</span>
+						{transferCount > 0 && (
+							<span className="badge badge-accent">
+								{transferCount} Umstieg{transferCount > 1 ? 'e' : ''}
+							</span>
+						)}
+					</div>
+					<div className="journey-time mb-2">
 						{formatTime(departure)} → {formatTime(arrival)}
-					</span>
+					</div>
 					{transferCount > 0 && transferStations.length > 0 && (
-						<span className="ml-2 text-sm text-green-600 font-medium">
+						<div className="text-sm text-accent-600 font-medium">
 							🚆 via {transferStations.join(", ")}
-						</span>
+						</div>
 					)}
 				</div>
 				<div className="text-right">
-					<div className="text-sm text-gray-500">
+					<div className="journey-duration mb-1">
 						{(() => {
-							// Try to get journey duration, calculate if missing
 							if (journey.duration) {
 								const formatted = formatDuration(journey.duration);
-								if (
-									formatted !== "Unknown" &&
-									formatted !== "Duration unknown"
-								) {
+								if (formatted !== "Unknown" && formatted !== "Duration unknown") {
 									return formatted;
 								}
 							}
-							// Calculate total duration from first departure to last arrival
 							if (departure && arrival) {
 								try {
 									const dep = new Date(departure);
@@ -228,90 +221,84 @@ const JourneyCard = ({
 									const minutes = diffMins % 60;
 									return `${hours}h ${minutes}m`;
 								} catch (e) {
-									return "Duration unavailable";
+									return "Dauer unbekannt";
 								}
 							}
-							return "Duration unavailable";
+							return "Dauer unbekannt";
 						})()}
 					</div>
-					<div className="text-lg font-bold text-gray-800">{priceDisplay}</div>
+					<div className="journey-price">{priceDisplay}</div>
 				</div>
 			</div>
 
 			{/* Route Summary */}
-			<div className="text-sm text-gray-600 mb-2">
-				{origin.name} → {destination.name}
-				{transferCount > 0 && (
-					<span className="ml-2 text-xs text-orange-600">
-						({transferCount} transfer{transferCount > 1 ? "s" : ""})
-					</span>
-				)}
+			<div className="bg-neutral-50 rounded-lg p-3 mb-4">
+				<div className="flex items-center justify-between text-sm">
+					<span className="font-medium text-neutral-900">{origin.name}</span>
+					<div className="flex items-center space-x-2">
+						<div className="h-0.5 w-8 bg-primary-300"></div>
+						<span className="text-xs text-neutral-500">🚄</span>
+						<div className="h-0.5 w-8 bg-primary-300"></div>
+					</div>
+					<span className="font-medium text-neutral-900">{destination.name}</span>
+				</div>
+				<div className="text-xs text-neutral-600 mt-2">
+					{formatDate(departure)} • {classDisplay}
+				</div>
 			</div>
 
-			{/* Journey Legs - Similar to SplitOptions segments */}
-			<div className="text-xs text-gray-500 space-y-1 mb-3">
+			{/* Journey Legs */}
+			<div className="space-y-2 mb-4">
 				{journey.legs
 					?.filter((leg) => !leg.walking)
 					.map((leg, legIndex) => (
-						<LegDetails
-							key={legIndex}
-							leg={leg}
-							legIndex={legIndex}
-							isLast={
-								legIndex === journey.legs.filter((l) => !l.walking).length - 1
-							}
-						/>
+						<div key={legIndex} className="journey-segment">
+							<div className="flex items-center space-x-3">
+								<div className="badge bg-primary-600 text-white">
+									{(() => {
+										if (leg.line?.name) return leg.line.name;
+										if (leg.line?.product && leg.line?.productName)
+											return `${leg.line.product} ${leg.line.productName}`;
+										if (leg.line?.product) return leg.line.product;
+										return "Zug";
+									})()}
+								</div>
+								<div className="flex-1 text-sm">
+									<div className="flex items-center justify-between">
+										<span className="font-medium">{leg.origin?.name}</span>
+										<span className="text-neutral-500">{formatTime(leg.departure)}</span>
+									</div>
+									<div className="flex items-center justify-between">
+										<span className="font-medium">{leg.destination?.name}</span>
+										<span className="text-neutral-500">{formatTime(leg.arrival)}</span>
+									</div>
+								</div>
+							</div>
+						</div>
 					))}
 			</div>
 
-			{/* Journey Summary - Similar to SplitOptions pricing summary */}
-			<div className="border-t pt-3 flex justify-between items-center">
+			{/* Journey Summary */}
+			<div className="border-t border-neutral-200 pt-4 flex justify-between items-center">
 				<div>
-					<div className="text-sm font-medium text-gray-700">
-						Total: {priceDisplay}
+					<div className="text-base font-bold text-neutral-900">
+						Gesamtpreis: {priceDisplay}
 					</div>
-					<div className="text-xs text-gray-600">
-						{classDisplay}
-						{transferCount > 0 && transferStations.length > 0 && (
-							<span className="ml-2">
-								• {transferCount} transfer{transferCount > 1 ? "s" : ""}
-							</span>
+					<div className="flex items-center space-x-4 text-xs text-neutral-600 mt-1">
+						<span>{classDisplay}</span>
+						{transferCount > 0 && (
+							<span>• {transferCount} Umstieg{transferCount > 1 ? 'e' : ''}</span>
 						)}
 					</div>
 				</div>
 				<div className="text-right">
-					<div className="text-xs text-gray-500">
-						{(() => {
-							// Try to get journey duration, calculate if missing
-							if (journey.duration) {
-								const formatted = formatDuration(journey.duration);
-								if (
-									formatted !== "Unknown" &&
-									formatted !== "Duration unknown"
-								) {
-									return formatted;
-								}
-							}
-							// Calculate total duration from first departure to last arrival
-							if (departure && arrival) {
-								try {
-									const dep = new Date(departure);
-									const arr = new Date(arrival);
-									const diffMs = arr - dep;
-									const diffMins = Math.floor(diffMs / 60000);
-									const hours = Math.floor(diffMins / 60);
-									const minutes = diffMins % 60;
-									return `${hours}h ${minutes}m`;
-								} catch (e) {
-									return "";
-								}
-							}
-							return "";
-						})()}
-					</div>
-					<div className="text-xs text-blue-600">
-						{formatDate(departure)} • {formatTime(departure)}-
-						{formatTime(arrival)}
+					{isSelected && (
+						<div className="badge badge-success mb-2">
+							✓ Ausgewählt
+						</div>
+					)}
+					<div className="text-xs text-primary-600 font-medium">
+						{formatTime(departure)} - {formatTime(arrival)}
 					</div>
 				</div>
 			</div>

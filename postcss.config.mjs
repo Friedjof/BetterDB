@@ -1,6 +1,5 @@
-// PostCSS-Konfiguration für TailwindCSS
+// PostCSS-Konfiguration für TailwindCSS v4
 const config = {
-	// Plugin-Liste: TailwindCSS für Utility-first CSS
 	plugins: ["@tailwindcss/postcss"],
 };
 
