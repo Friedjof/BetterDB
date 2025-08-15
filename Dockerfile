@@ -1,103 +1,73 @@
-# Dockerfile
+# Use Node.js 18 Alpine for smaller image size
+FROM node:18-alpine AS base
 
-# Stufe 1: Abhängigkeiten installieren
-# Wechsel zu einem Debian-basierten Image (node:18) für bessere Kompatibilität.
-FROM node:18 AS deps
+# Install dependencies only when needed
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Verhindert, dass Puppeteer beim Installieren Chromium herunterlädt.
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+# Copy package files
+COPY package.json package-lock.json* ./
+RUN npm ci --only=production && npm cache clean --force
 
-COPY package.json package-lock.json ./
-# Führt npm install aus, ohne den Browser herunterzuladen
-RUN npm install
-
-# Stufe 2: Die Anwendung bauen
-FROM node:18 AS builder
+# Rebuild the source code only when needed
+FROM base AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+
+# Install ALL dependencies including dev dependencies for building
+COPY package.json package-lock.json* ./
+RUN npm ci && npm cache clean --force
+
+# Copy source code
 COPY . .
-# Erneut setzen, um sicherzugehen
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
+# Build the application
 RUN npm run build
 
-# Stufe 3: Finale, produktive Stufe
-FROM node:18 AS runner
+# Production image, copy all the files and run next
+FROM base AS runner
 WORKDIR /app
-
-# Set timezone to Europe/Berlin (German timezone)
-ENV TZ=Europe/Berlin
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-
-# ---- HINZUGEFÜGT FÜR PUPPETEER (Chromium + Dependencies Methode) ----
-# Installiert Chromium und alle notwendigen Abhängigkeiten direkt aus den Debian-Repositories.
-# Dies ist die stabilste Methode und wird vom Puppeteer-Team empfohlen.
-RUN apt-get update \
-    && apt-get install -y \
-    ca-certificates \
-    fonts-liberation \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libc6 \
-    libcairo2 \
-    libcups2 \
-    libdbus-1-3 \
-    libexpat1 \
-    libfontconfig1 \
-    libgbm1 \
-    libgcc1 \
-    libglib2.0-0 \
-    libgtk-3-0 \
-    libnspr4 \
-    libnss3 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libstdc++6 \
-    libx11-6 \
-    libx11-xcb1 \
-    libxcb1 \
-    libxcomposite1 \
-    libxcursor1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxi6 \
-    libxrandr2 \
-    libxrender1 \
-    libxss1 \
-    libxtst6 \
-    lsb-release \
-    wget \
-    xdg-utils \
-    chromium \
-    tzdata \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
-# ---- ENDE PUPPETEER-ZUSATZ ----
 
 ENV NODE_ENV=production
 ENV USE_CHROMIUM_PATH=true
 
-# Kopieren des Standalone-Outputs aus der Builder-Stufe
-# Anpassen des Besitzers an den Standard 'node' Benutzer
-COPY --from=builder --chown=node:node /app/.next/standalone ./
-COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+# Create nextjs user
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
-# ---- HINZUGEFÜGT FÜR db-hafas-stations ----
-# Kopiert manuell das Modul, dessen Datendateien vom 'standalone'-Modus nicht erfasst werden.
-COPY --from=builder --chown=node:node /app/node_modules/db-hafas-stations ./node_modules/db-hafas-stations
-# ---- ENDE db-hafas-stations-ZUSATZ ----
+# Install Chromium for Puppeteer
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    tzdata
 
-# ---- PRÄVENTIVE LÖSUNG FÜR FEHLENDE DATEIEN ----
-# HINWEIS: Dieser Ansatz löst Probleme mit fehlenden Dateien (wie .json, .sql etc.),
-# führt aber zu einem DEUTLICH GRÖSSEREN Docker-Image, da der Vorteil von 'output: standalone'
-# teilweise aufgehoben wird. Dies stellt sicher, dass alle Pakete vollständig sind.
-# COPY --from=builder --chown=node:node /app/node_modules ./node_modules
-# ---- ENDE PRÄVENTIVE LÖSUNG ----
+# Tell Puppeteer to use installed Chromium
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
-# Wechsel zum non-root 'node' Benutzer für erhöhte Sicherheit
-USER node
+# Set timezone to Europe/Berlin
+ENV TZ=Europe/Berlin
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# Copy public assets
+COPY --from=builder /app/public ./public
+
+# Copy built application
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+# Copy specific modules that standalone might miss
+COPY --from=builder /app/node_modules/db-hafas-stations ./node_modules/db-hafas-stations
+
+# Set correct permissions
+RUN chown -R nextjs:nodejs /app
+USER nextjs
 
 EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
 CMD ["node", "server.js"]

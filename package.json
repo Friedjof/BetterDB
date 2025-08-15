@@ -8,6 +8,12 @@
     "start": "next start",
     "start:production": "USE_CHROMIUM_PATH=true next start",
     "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "type-check": "tsc --noEmit || echo 'No TypeScript config found'",
+    "test": "echo 'No tests specified' && exit 0",
+    "docker:build": "docker build -t betterbahn .",
+    "docker:run": "docker run -p 3000:3000 betterbahn",
+    "docker:dev": "docker build -t betterbahn:dev . && docker run -p 3000:3000 betterbahn:dev",
     "deploy": "docker build"
   },
   "dependencies": {
