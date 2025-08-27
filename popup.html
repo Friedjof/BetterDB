@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>DB Verbindungen</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="popup.css" rel="stylesheet" />
+  </head>
+  <body>
+    <header>
+      <h1>DB Verbindungen</h1>
+      <div class="actions">
+        <button id="refreshBtn" title="Neu aus Tab extrahieren">Aktualisieren</button>
+        <button id="debugBtn" title="Debug-Infos in Konsole ausgeben">Debug</button>
+        <button id="copyBtn" title="Alle Ergebnisse als JSON kopieren">Copy JSON</button>
+      </div>
+    </header>
+
+    <section id="meta">
+      <div id="status">Lade Daten…</div>
+    </section>
+
+    <main id="connections"></main>
+
+    <template id="connection-tpl">
+      <article class="connection">
+        <button class="connection-header" type="button"></button>
+        <div class="connection-body">
+          <div class="chips"></div>
+          <div class="segments"></div>
+          <details class="stops-wrap">
+            <summary>Zwischenhalte</summary>
+            <div class="stops"></div>
+          </details>
+        </div>
+      </article>
+    </template>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

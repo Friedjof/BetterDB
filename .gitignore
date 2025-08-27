@@ -1,0 +1,21 @@
+# Development files
+node_modules/
+.next/
+*.log
+*.tmp
+
+# Debug/test files
+sc.json
+debug_*.js
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Extension packages
+*.zip
+*.crx

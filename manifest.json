@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "DB Verbindungen Viewer",
+  "version": "1.2.0",
+  "description": "Liest DB-Suchergebnisse (inkl. Zwischenhalte) aus und zeigt sie im Popup an – ohne manuelles Klicken.",
+  "permissions": ["activeTab", "scripting", "storage", "tabs"],
+  "host_permissions": ["*://*.bahn.de/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["pagehook.js"],
+      "matches": ["*://*.bahn.de/*"]
+    }
+  ],
+  "action": {
+    "default_title": "DB Verbindungen",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.bahn.de/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}
