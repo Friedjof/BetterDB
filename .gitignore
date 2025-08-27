@@ -4,10 +4,6 @@ node_modules/
 *.log
 *.tmp
 
-# Debug/test files
-sc.json
-debug_*.js
-
 # IDE files
 .vscode/
 .idea/
