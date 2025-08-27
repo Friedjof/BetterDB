@@ -40,11 +40,15 @@ export class NetworkExtractor extends BaseExtractor {
     // Listen for messages from pagehook.js
     window.addEventListener('message', (event) => {
       try {
-        if (event && event.source === window && 
-            event.data && event.data.type === 'BETTERDB_STOPS' && 
-            Array.isArray(event.data.blocks)) {
-          
-          this.processNetworkBlocks(event.data.blocks);
+        if (event && event.source === window && event.data) {
+          // Handle stops data
+          if (event.data.type === 'BETTERDB_STOPS' && Array.isArray(event.data.blocks)) {
+            this.processNetworkBlocks(event.data.blocks);
+          }
+          // Handle price data
+          if (event.data.type === 'BETTERDB_PRICES' && Array.isArray(event.data.prices)) {
+            this.processNetworkPrices(event.data.prices);
+          }
         }
       } catch (error) {
         this.debug('Error processing network message:', error);
@@ -160,17 +164,50 @@ export class NetworkExtractor extends BaseExtractor {
   }
 
   /**
+   * Process incoming price data from pagehook
+   * @param {Array} prices - Array of price data
+   */
+  processNetworkPrices(prices) {
+    // Keep price data in global storage for access
+    const arr = (window.__bdvNetPrices = window.__bdvNetPrices || []);
+    
+    for (const price of prices) {
+      arr.push({
+        ...price,
+        timestamp: Date.now()
+      });
+    }
+    
+    // Keep only recent 20 prices
+    if (arr.length > 20) {
+      arr.splice(0, arr.length - 20);
+    }
+
+    this.debug(`Network prices updated: ${arr.length} total prices`);
+  }
+
+  /**
+   * Get network price data
+   * @returns {Array} - Array of price data
+   */
+  getNetworkPrices() {
+    return window.__bdvNetPrices || [];
+  }
+
+  /**
    * Get statistics about network data
    * @returns {Object} - Statistics object
    */
   getStats() {
     const blocks = this.getNetworkBlocks();
     const totalStops = blocks.reduce((sum, block) => sum + block.length, 0);
+    const prices = this.getNetworkPrices();
     
     return {
       blockCount: blocks.length,
       totalStops: totalStops,
-      avgStopsPerBlock: blocks.length ? (totalStops / blocks.length).toFixed(1) : 0
+      avgStopsPerBlock: blocks.length ? (totalStops / blocks.length).toFixed(1) : 0,
+      priceCount: prices.length
     };
   }
 }

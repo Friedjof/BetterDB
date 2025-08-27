@@ -54,14 +54,48 @@ function render(conns, extractedAt) {
 
     // Preis-Chip als erstes hinzufügen
     const priceChip = document.createElement("span");
-    if (c.priceFrom != null && c.priceFrom > 0) {
+    const bestPrice = c.networkPrice || c.priceFrom; // Einfache Fallback-Logik
+    
+    if (bestPrice != null && bestPrice > 0) {
       priceChip.className = "chip price-chip";
-      priceChip.textContent = `ab ${priceFmt(c.priceFrom)}`;
+      priceChip.textContent = `ab ${priceFmt(bestPrice)}`;
+      if (c.networkPrice) {
+        priceChip.title = "Preis von API";
+      }
     } else {
       priceChip.className = "chip price-chip no-price";
       priceChip.textContent = "Preis ermitteln";
     }
     chips.appendChild(priceChip);
+
+    // Ticket-Splitting-Chip hinzufügen (falls verfügbar)
+    if (c.splittingAnalysis) {
+      const splittingChip = document.createElement("span");
+      
+      if (c.splittingAnalysis.error) {
+        splittingChip.className = "chip splitting-chip error";
+        splittingChip.textContent = "Splitting-Fehler";
+        splittingChip.title = c.splittingAnalysis.error;
+      } else if (c.splittingAnalysis.hasOpportunities) {
+        splittingChip.className = "chip splitting-chip savings";
+        const savings = c.splittingAnalysis.bestSavingsPercentage;
+        splittingChip.textContent = `💰 -${savings}%`;
+        splittingChip.title = `Ticket-Splitting möglich: ${priceFmt(c.splittingAnalysis.bestSavings)} sparen (${savings}%)`;
+        
+        // Click handler für Details
+        splittingChip.style.cursor = "pointer";
+        splittingChip.addEventListener("click", (e) => {
+          e.stopPropagation();
+          showSplittingDetails(c);
+        });
+      } else {
+        splittingChip.className = "chip splitting-chip no-savings";
+        splittingChip.textContent = "Kein Split-Vorteil";
+        splittingChip.title = "Keine günstigeren Ticket-Kombinationen gefunden";
+      }
+      
+      chips.appendChild(splittingChip);
+    }
 
     if (c.tripId) {
       const chip = document.createElement("span");
@@ -230,6 +264,82 @@ function showDebugInfo() {
     console.log('=========================');
     statusEl.textContent = "Debug-Infos in der Konsole ausgegeben (F12 → Console)";
   });
+}
+
+function showSplittingDetails(connection) {
+  if (!connection.splittingAnalysis || !connection.splittingAnalysis.hasOpportunities) {
+    return;
+  }
+
+  const analysis = connection.splittingAnalysis;
+  const route = `${connection.start} → ${connection.destination}`;
+  
+  // Create modal dialog
+  const modal = document.createElement('div');
+  modal.className = 'splitting-modal';
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="this.parentElement.remove()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🎫 Ticket-Splitting für ${route}</h3>
+        <button class="close-btn" onclick="this.closest('.splitting-modal').remove()">×</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="original-price">
+          <strong>Originalpreis:</strong> ${priceFmt(connection.priceFrom)}
+        </div>
+        
+        <div class="best-option">
+          <strong>Beste Option:</strong> ${priceFmt(analysis.bestSavings)} sparen (${analysis.bestSavingsPercentage}%)
+        </div>
+        
+        <div class="options-list">
+          <h4>Splitting-Optionen:</h4>
+          ${analysis.options.map((option, i) => `
+            <div class="splitting-option">
+              <div class="option-header">
+                <span class="option-number">#${i + 1}</span>
+                <span class="savings ${option.savings > 0 ? 'positive' : 'neutral'}">
+                  ${option.savings > 0 ? '-' : ''}${priceFmt(Math.abs(option.savings))} 
+                  (${option.savingsPercentage}%)
+                </span>
+              </div>
+              
+              <div class="route-segments">
+                ${option.route || 'Route nicht verfügbar'}
+              </div>
+              
+              <div class="option-details">
+                <span>Gesamtpreis: ${priceFmt(option.totalPrice)}</span>
+                <span>Segmente: ${option.segmentCount}</span>
+              </div>
+              
+              <div class="recommendation">
+                ${option.recommendation || 'Keine Empfehlung verfügbar'}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        
+        <div class="disclaimer">
+          <small>
+            ⚠️ <strong>Hinweis:</strong> Ticket-Splitting erfordert separate Buchungen für jedes Segment. 
+            Prüfen Sie die Zugbindung und mögliche Anschlussrisiken. Die Preise können sich ändern.
+          </small>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button onclick="this.closest('.splitting-modal').remove()">Schließen</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Log detailed analysis to console
+  console.log('[BetterDB] Detailed Splitting Analysis for', route, analysis);
 }
 
 document.addEventListener("DOMContentLoaded", () => {

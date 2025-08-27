@@ -24,7 +24,10 @@
         "utils/helpers.js",
         "utils/dom-utils.js",
         "utils/data-merger.js",
-        "utils/context-manager.js"
+        "utils/context-manager.js",
+        "utils/url-parser.js",
+        "utils/route-graph.js",
+        "utils/ticket-splitter.js"
       ],
       "matches": ["*://*.bahn.de/*"]
     }

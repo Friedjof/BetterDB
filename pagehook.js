@@ -66,10 +66,20 @@
   function processData(data) {
     try {
       const blocks = [];
-      // Various shapes
+      const prices = [];
+      
+      // Existing stops extraction (unchanged)
       if (Array.isArray(data?.journeys)) {
         for (const j of data.journeys) {
           if (Array.isArray(j.stopovers)) blocks.push(normalizeStops(j.stopovers));
+          // Extract price if available
+          if (j.price?.amount) {
+            prices.push({
+              type: 'journey',
+              price: j.price.amount,
+              journeyId: j.refreshToken || j.id
+            });
+          }
         }
       }
       if (Array.isArray(data?.journey?.stopovers)) {
@@ -78,8 +88,16 @@
       if (Array.isArray(data?.res?.jnyL)) {
         for (const j of data.res.jnyL) if (Array.isArray(j.stopL)) blocks.push(normalizeStops(j.stopL));
       }
-      if (!blocks.length) return;
-      W.postMessage({ type: 'BETTERDB_STOPS', blocks }, '*');
+      
+      // Send stops data (existing functionality)
+      if (blocks.length) {
+        W.postMessage({ type: 'BETTERDB_STOPS', blocks }, '*');
+      }
+      
+      // Send price data (new functionality)
+      if (prices.length) {
+        W.postMessage({ type: 'BETTERDB_PRICES', prices }, '*');
+      }
     } catch {}
   }
 })();

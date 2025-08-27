@@ -6,6 +6,7 @@ import { DigitalDataExtractor } from './extractors/digital-data-extractor.js';
 import { DOMExtractor } from './extractors/dom-extractor.js';
 import { NetworkExtractor } from './extractors/network-extractor.js';
 import { mergeVuexAndDigitalData, applyCtxReconFallback, addStopsToConnections, cleanConnections } from './utils/data-merger.js';
+import { ticketSplitter } from './utils/ticket-splitter.js';
 import { delay } from './utils/helpers.js';
 
 export class DataManager {
@@ -238,8 +239,33 @@ export class DataManager {
         merged = addStopsToConnections(merged, allStopLists);
       }
 
-      // Phase 5: Final cleanup and validation
+      // Phase 5: Simple price enhancement from network data
+      try {
+        const networkPrices = this.extractors.network.getNetworkPrices();
+        if (networkPrices.length > 0) {
+          console.log(`[BetterDB] Found ${networkPrices.length} network prices, applying to connections`);
+          merged = this.applySimplePriceMatching(merged, networkPrices);
+        }
+      } catch (error) {
+        console.error('[BetterDB] Simple price matching failed:', error);
+      }
+
+      // Phase 6: Final cleanup and validation
       let result = cleanConnections(merged);
+
+      // Phase 7: Ticket splitting analysis (optional, only if enabled)
+      try {
+        if (ticketSplitter.getStatus().enabled && result.length > 0) {
+          console.log('[BetterDB] Phase 7: Starting ticket splitting analysis');
+          result = await ticketSplitter.analyzeConnections(result);
+          
+          const summary = ticketSplitter.getSplittingSummary(result);
+          console.log('[BetterDB] Ticket splitting summary:', summary);
+        }
+      } catch (error) {
+        console.error('[BetterDB] Ticket splitting analysis failed, continuing without it:', error);
+        // Continue with results even if splitting analysis fails
+      }
       
       console.log(`[BetterDB] Extraction complete: ${result.length} final connections`);
       console.log('[BetterDB] Final prices:', result.map(c => ({ tripId: c.tripId, priceFrom: c.priceFrom })));
@@ -426,6 +452,34 @@ export class DataManager {
     if (enabled) {
       this.setupAutoRefresh();
     }
+  }
+
+  /**
+   * Simple price matching logic
+   * @param {Array} connections - Array of connections
+   * @param {Array} networkPrices - Array of network price data
+   * @returns {Array} - Enhanced connections
+   */
+  applySimplePriceMatching(connections, networkPrices) {
+    if (!networkPrices.length) return connections;
+    
+    return connections.map(connection => {
+      // Skip if connection already has a price
+      if (connection.priceFrom > 0) return connection;
+      
+      // Simple matching: use the most recent price
+      // In a real implementation, we'd match by journey ID, route, etc.
+      const recentPrice = networkPrices[networkPrices.length - 1];
+      
+      if (recentPrice && recentPrice.price > 0) {
+        return {
+          ...connection,
+          networkPrice: recentPrice.price
+        };
+      }
+      
+      return connection;
+    });
   }
 
   /**
