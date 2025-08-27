@@ -47,11 +47,21 @@ function render(conns, extractedAt) {
     const titleParts = [
       `${c.start || "?"} → ${c.destination || "?"}`,
       c.departure ? `ab ${timeShort(c.departure)}` : "",
-      c.arrival ? `an ${timeShort(c.arrival)}` : "",
-      c.priceFrom != null ? `· ${priceFmt(c.priceFrom)}` : ""
+      c.arrival ? `an ${timeShort(c.arrival)}` : ""
     ].filter(Boolean);
 
     header.textContent = titleParts.join(" ");
+
+    // Preis-Chip als erstes hinzufügen
+    const priceChip = document.createElement("span");
+    if (c.priceFrom != null && c.priceFrom > 0) {
+      priceChip.className = "chip price-chip";
+      priceChip.textContent = `ab ${priceFmt(c.priceFrom)}`;
+    } else {
+      priceChip.className = "chip price-chip no-price";
+      priceChip.textContent = "Preis ermitteln";
+    }
+    chips.appendChild(priceChip);
 
     if (c.tripId) {
       const chip = document.createElement("span");
@@ -108,7 +118,12 @@ function render(conns, extractedAt) {
 function loadFromStorage() {
   chrome.storage.local.get(["dbConnections", "dbExtractedAt", "dbError", "dbDebugInfo"], (o) => {
     if (o.dbError) {
-      statusEl.textContent = `Fehler beim Extrahieren: ${o.dbError}`;
+      // Check if it's a context invalidation error
+      if (o.dbError.toLowerCase().includes('context invalidated')) {
+        statusEl.innerHTML = `⚠️ Extension wurde neu geladen. <button onclick="location.reload()" style="margin-left:8px;padding:2px 8px;border:1px solid #ccc;background:#f9f9f9;border-radius:4px;cursor:pointer;">Popup neu laden</button>`;
+      } else {
+        statusEl.textContent = `Fehler beim Extrahieren: ${o.dbError}`;
+      }
     }
     
     // Debug info anzeigen
@@ -117,7 +132,33 @@ function loadFromStorage() {
       if (o.dbDebugInfo.error) {
         console.error('[BetterDB] Extraction error:', o.dbDebugInfo.error);
       }
+      
+      // Show context status in debug info
+      if (o.dbDebugInfo.contextValid === false) {
+        console.warn('[BetterDB] Extension context is invalid');
+      }
     }
+    
+    // DEBUGGING: Preis-Daten im Detail loggen
+    console.log('=== PRICE DEBUG ===');
+    console.log('Total connections:', (o.dbConnections || []).length);
+    (o.dbConnections || []).forEach((conn, i) => {
+      console.log(`Connection ${i + 1}:`, {
+        tripId: conn.tripId,
+        start: conn.start,
+        destination: conn.destination,
+        priceFrom: conn.priceFrom,
+        rawPriceData: {
+          priceFrom: conn.priceFrom,
+          type: typeof conn.priceFrom,
+          isNull: conn.priceFrom === null,
+          isUndefined: conn.priceFrom === undefined,
+          isZero: conn.priceFrom === 0,
+          greaterThanZero: conn.priceFrom > 0
+        }
+      });
+    });
+    console.log('================');
     
     render(o.dbConnections || [], o.dbExtractedAt || null);
   });
@@ -131,11 +172,38 @@ async function extractFromActiveTab() {
       statusEl.textContent = "Kein aktiver Tab.";
       return;
     }
-    chrome.tabs.sendMessage(tab.id, { cmd: "extractNow" }, () => {
-      // egal ob Antwort kommt – wir lesen den Storage (MV3 messaging kann still sein)
+    
+    // Check if we can inject content script first
+    try {
+      await chrome.tabs.get(tab.id);
+    } catch (error) {
+      statusEl.textContent = "Tab ist nicht mehr verfügbar.";
+      return;
+    }
+    
+    chrome.tabs.sendMessage(tab.id, { cmd: "extractNow" }, (response) => {
+      // Proper chrome.runtime.lastError handling
+      if (chrome.runtime.lastError) {
+        console.warn('[BetterDB] Content script communication failed:', chrome.runtime.lastError.message);
+        
+        // Check if it's a context invalidation error
+        const errorMsg = chrome.runtime.lastError.message.toLowerCase();
+        if (errorMsg.includes('receiving end does not exist')) {
+          statusEl.innerHTML = `⚠️ Content Script nicht geladen. <button onclick="location.reload()" style="margin-left:8px;padding:2px 8px;border:1px solid #ccc;background:#f9f9f9;border-radius:4px;cursor:pointer;">Seite neu laden</button> und erneut versuchen.`;
+        } else if (errorMsg.includes('context invalidated')) {
+          statusEl.innerHTML = `⚠️ Extension wurde neu geladen. <button onclick="location.reload()" style="margin-left:8px;padding:2px 8px;border:1px solid #ccc;background:#f9f9f9;border-radius:4px;cursor:pointer;">Popup neu laden</button>`;
+        } else {
+          statusEl.textContent = `Kommunikationsfehler: ${chrome.runtime.lastError.message}`;
+        }
+        return;
+      }
+      
+      // Success case - content script responded (or messaging succeeded silently)
+      console.log('[BetterDB] Content script message sent successfully');
       setTimeout(loadFromStorage, 150); // kurz warten bis content.js geschrieben hat
     });
   } catch (e) {
+    console.error('[BetterDB] Extract from active tab error:', e);
     statusEl.textContent = `Fehler: ${e && e.message ? e.message : e}`;
   }
 }

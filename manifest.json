@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DB Verbindungen Viewer",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Demo: Extracts DB train connections with intermediate stops from sessionStorage - Educational/Research purpose only.",
   "permissions": ["activeTab", "scripting", "storage", "tabs"],
   "host_permissions": ["*://*.bahn.de/*"],
@@ -11,6 +11,21 @@
   "web_accessible_resources": [
     {
       "resources": ["pagehook.js"],
+      "matches": ["*://*.bahn.de/*"]
+    },
+    {
+      "resources": [
+        "data-manager.js",
+        "extractors/base-extractor.js",
+        "extractors/vuex-extractor.js",
+        "extractors/digital-data-extractor.js",
+        "extractors/dom-extractor.js",
+        "extractors/network-extractor.js",
+        "utils/helpers.js",
+        "utils/dom-utils.js",
+        "utils/data-merger.js",
+        "utils/context-manager.js"
+      ],
       "matches": ["*://*.bahn.de/*"]
     }
   ],
